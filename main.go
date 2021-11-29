@@ -2,38 +2,25 @@ package main
 
 import (
 	"bufio"
-	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log"
 	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/fatih/color"
+	"github.com/go-echarts/go-echarts/v2/components"
 	"golang.org/x/tools/benchmark/parse"
 )
 
-// uploadData sends data to server and expects graph url.
-func uploadData(apiUrl, data, title string) (string, error) {
+const (
+	nsop = iota
+	bop
+	allocsop
 
-	resp, err := http.PostForm(apiUrl, url.Values{"data": {data}, "title": {title}})
-	if err != nil {
-		return "", err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-
-	if resp.StatusCode != 200 {
-		return "", errors.New("Server din't return graph URL")
-	}
-
-	return string(body), nil
-}
+	title = "Graph: Benchmark results in "
+)
 
 func main() {
 
@@ -42,8 +29,6 @@ func main() {
 	// graph elements will be ordered as in benchmark output by default - unless the order was specified here
 	flag.Var(&oBenchNames, "obn", "comma-separated list of benchmark names")
 	flag.Var(&oBenchArgs, "oba", "comma-separated list of benchmark arguments")
-	title := flag.String("title", "Graph: Benchmark results in ns/op", "title of a graph")
-	apiUrl := flag.String("apiurl", "http://benchgraph.codingberg.com", "url to server api")
 	flag.Parse()
 
 	var skipBenchNamesParsing, skipBenchArgsParsing bool
@@ -55,7 +40,7 @@ func main() {
 		skipBenchArgsParsing = true
 	}
 
-	benchResults := make(BenchNameSet)
+	benchResults := make(map[int]BenchNameSet)
 
 	// parse Golang benchmark results, line by line
 	scan := bufio.NewScanner(os.Stdin)
@@ -88,11 +73,19 @@ func main() {
 				oBenchArgs.Add(arg)
 			}
 
-			if _, ok := benchResults[name]; !ok {
-				benchResults[name] = make(BenchArgSet)
+			for i := nsop; i <= allocsop; i++ {
+				if _, ok := benchResults[i]; !ok {
+					benchResults[i] = make(BenchNameSet)
+				}
+
+				if _, ok := benchResults[i][name]; !ok {
+					benchResults[i][name] = make(BenchArgSet)
+				}
 			}
 
-			benchResults[name][arg] = b.NsPerOp
+			benchResults[nsop][name][arg] = b.NsPerOp
+			benchResults[bop][name][arg] = b.AllocedBytesPerOp
+			benchResults[allocsop][name][arg] = b.AllocsPerOp
 		}
 
 		fmt.Printf("%s %s\n", mark, line)
@@ -108,21 +101,27 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Println()
-	fmt.Println("Waiting for server response ...")
-
-	data := graphData(benchResults, oBenchNames, oBenchArgs)
-
-	graphUrl, err := uploadData(*apiUrl, string(data), *title)
+	page := components.NewPage()
+	page.AddCharts(
+		//overlap(benchResults, oBenchNames, oBenchArgs),
+		lineBase(benchResults[nsop], oBenchNames, oBenchArgs),
+		areaBase(benchResults[bop], oBenchNames, oBenchArgs),
+		barBase(benchResults[allocsop], oBenchNames, oBenchArgs),
+	)
+	f, err := os.Create("asset/page.html")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "uploading data: %v", err)
-		os.Exit(1)
+		panic(err)
 	}
+	page.Render(io.MultiWriter(f))
 
-	fmt.Println("=========================================")
-	fmt.Println()
-	fmt.Println(graphUrl)
-	fmt.Println()
-	fmt.Println("=========================================")
+	fs := http.FileServer(http.Dir("asset"))
+	log.Println("running server at http://localhost:8090")
+	log.Fatal(http.ListenAndServe("localhost:8090", logRequest(fs)))
+}
 
+func logRequest(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+		handler.ServeHTTP(w, r)
+	})
 }

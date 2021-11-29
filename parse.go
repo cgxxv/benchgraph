@@ -8,10 +8,10 @@ import (
 
 // Coder should use following naming convention for Benchmark functions
 // Naming convention: Benchmark[Function_name]_[Function_argument](b *testing.B)
-var re *regexp.Regexp = regexp.MustCompile(`Benchmark([a-zA-Z0-9]+)_([_a-zA-Z0-9]+)-([0-9]+)$`)
+var re *regexp.Regexp = regexp.MustCompile(`Benchmark([\/a-zA-Z0-9]+)[_|\/]([_\-a-zA-Z0-9]+)-([0-9]+)$`)
 
 // Storage for Func(Arg)=Result relations
-type BenchArgSet map[string]float64
+type BenchArgSet map[string]interface{}
 type BenchNameSet map[string]BenchArgSet
 
 // parseNameArgThread parses function name, argument and number of threads from benchmark output.
