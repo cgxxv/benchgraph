@@ -104,9 +104,9 @@ func main() {
 	page := components.NewPage()
 	page.AddCharts(
 		//overlap(benchResults, oBenchNames, oBenchArgs),
-		lineBase(benchResults[nsop], oBenchNames, oBenchArgs),
-		areaBase(benchResults[bop], oBenchNames, oBenchArgs),
-		barBase(benchResults[allocsop], oBenchNames, oBenchArgs),
+		line(benchResults[nsop], oBenchNames, oBenchArgs),
+		area(benchResults[bop], oBenchNames, oBenchArgs),
+		bar(benchResults[allocsop], oBenchNames, oBenchArgs),
 	)
 	f, err := os.Create("asset/page.html")
 	if err != nil {
