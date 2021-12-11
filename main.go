@@ -14,21 +14,42 @@ import (
 	"golang.org/x/tools/benchmark/parse"
 )
 
+var metrics = []string{
+	nsop,
+	bop,
+	allocsop,
+}
+
 const (
-	nsop = iota
-	bop
-	allocsop
+	nsop     = "n/op"
+	bop      = "B/op"
+	allocsop = "allocs/op"
+
+	bar = iota
+	line
+	area
 
 	title = "Graph: Benchmark results in "
 )
 
+var (
+	showBarMaxLine bool
+	showBarAvgLine bool
+)
+
 func main() {
 
-	var oBenchNames, oBenchArgs stringList
+	var (
+		oBenchNames, oBenchArgs, extra stringList
+		shape                          int
+	)
 
 	// graph elements will be ordered as in benchmark output by default - unless the order was specified here
 	flag.Var(&oBenchNames, "obn", "comma-separated list of benchmark names")
 	flag.Var(&oBenchArgs, "oba", "comma-separated list of benchmark arguments")
+	flag.IntVar(&shape, "shape", 0, "result of charts: 0 => bar, 1 => line, 2 => area, default: 0")
+	flag.BoolVar(&showBarMaxLine, "max", false, "show max line for bar chart, default: false")
+	flag.BoolVar(&showBarAvgLine, "avg", false, "show avg line for bar chart, default: false")
 	flag.Parse()
 
 	var skipBenchNamesParsing, skipBenchArgsParsing bool
@@ -40,7 +61,7 @@ func main() {
 		skipBenchArgsParsing = true
 	}
 
-	benchResults := make(map[int]BenchNameSet)
+	benchResults := make(map[string]BenchNameSet)
 
 	// parse Golang benchmark results, line by line
 	scan := bufio.NewScanner(os.Stdin)
@@ -73,19 +94,36 @@ func main() {
 				oBenchArgs.Add(arg)
 			}
 
-			for i := nsop; i <= allocsop; i++ {
-				if _, ok := benchResults[i]; !ok {
-					benchResults[i] = make(BenchNameSet)
+			for _, v := range metrics {
+				if _, ok := benchResults[v]; !ok {
+					benchResults[v] = make(BenchNameSet)
 				}
 
-				if _, ok := benchResults[i][name]; !ok {
-					benchResults[i][name] = make(BenchArgSet)
+				if _, ok := benchResults[v][name]; !ok {
+					benchResults[v][name] = make(BenchArgSet)
+				}
+			}
+
+			for v := range b.Extra {
+				if _, ok := benchResults[v]; !ok {
+					benchResults[v] = make(BenchNameSet)
+				}
+
+				if _, ok := benchResults[v][name]; !ok {
+					benchResults[v][name] = make(BenchArgSet)
 				}
 			}
 
 			benchResults[nsop][name][arg] = b.NsPerOp
 			benchResults[bop][name][arg] = b.AllocedBytesPerOp
 			benchResults[allocsop][name][arg] = b.AllocsPerOp
+
+			for k, v := range b.Extra {
+				benchResults[k][name][arg] = v
+				if !extra.stringInList(k) {
+					extra.Add(k)
+				}
+			}
 		}
 
 		fmt.Printf("%s %s\n", mark, line)
@@ -102,12 +140,47 @@ func main() {
 	}
 
 	page := components.NewPage()
-	page.AddCharts(
-		//overlap(benchResults, oBenchNames, oBenchArgs),
-		line(benchResults[nsop], oBenchNames, oBenchArgs),
-		area(benchResults[bop], oBenchNames, oBenchArgs),
-		bar(benchResults[allocsop], oBenchNames, oBenchArgs),
-	)
+
+	switch shape {
+	case line:
+		for _, v := range metrics {
+			page.AddCharts(
+				lineChart(benchResults, v, oBenchNames, oBenchArgs),
+			)
+		}
+	case area:
+		for _, v := range metrics {
+			page.AddCharts(
+				areaChart(benchResults, v, oBenchNames, oBenchArgs),
+			)
+		}
+	default:
+		for _, v := range metrics {
+			page.AddCharts(
+				barChart(benchResults, v, oBenchNames, oBenchArgs),
+			)
+		}
+	}
+
+	fmt.Printf("%#v\n", extra)
+
+	for _, v := range extra {
+		switch shape {
+		case line:
+			page.AddCharts(
+				lineChart(benchResults, v, oBenchNames, oBenchArgs),
+			)
+		case area:
+			page.AddCharts(
+				areaChart(benchResults, v, oBenchNames, oBenchArgs),
+			)
+		default:
+			page.AddCharts(
+				barChart(benchResults, v, oBenchNames, oBenchArgs),
+			)
+		}
+	}
+
 	f, err := os.Create("asset/page.html")
 	if err != nil {
 		panic(err)

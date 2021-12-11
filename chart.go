@@ -6,15 +6,15 @@ import (
 	"github.com/go-echarts/go-echarts/v2/types"
 )
 
-func line(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Line {
+func lineChart(benchResults map[string]BenchNameSet, metric string, oBenchNames, oBenchArgs stringList) *charts.Line {
 	line := charts.NewLine()
 	line.SetGlobalOptions(
 		charts.WithInitializationOpts(opts.Initialization{Theme: types.ThemeRoma}),
-		charts.WithTitleOpts(opts.Title{Title: title + "ns/op"}),
+		charts.WithTitleOpts(opts.Title{Title: title + metric}),
 		charts.WithLegendOpts(opts.Legend{Show: true, Top: "bottom"}),
 		charts.WithInitializationOpts(opts.Initialization{
-			Width:  "1200px",
-			Height: "600px",
+			Width:  "100%",
+			Height: "900px",
 		}),
 		charts.WithToolboxOpts(opts.Toolbox{Show: true, Right: "top", Feature: &opts.ToolBoxFeature{SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{Show: true}}}),
 	)
@@ -24,7 +24,7 @@ func line(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts
 	for _, name := range oBenchNames {
 		var items []opts.LineData
 		for _, arg := range oBenchArgs {
-			items = append(items, opts.LineData{Value: benchResults[name][arg]})
+			items = append(items, opts.LineData{Value: benchResults[metric][name][arg]})
 		}
 		line.AddSeries(name, items)
 	}
@@ -32,15 +32,15 @@ func line(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts
 	return line
 }
 
-func area(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Line {
+func areaChart(benchResults map[string]BenchNameSet, metric string, oBenchNames, oBenchArgs stringList) *charts.Line {
 	line := charts.NewLine()
 	line.SetGlobalOptions(
 		charts.WithInitializationOpts(opts.Initialization{Theme: types.ThemeInfographic}),
-		charts.WithTitleOpts(opts.Title{Title: title + "B/op"}),
+		charts.WithTitleOpts(opts.Title{Title: title + metric}),
 		charts.WithLegendOpts(opts.Legend{Show: true, Top: "bottom"}),
 		charts.WithInitializationOpts(opts.Initialization{
-			Width:  "1200px",
-			Height: "600px",
+			Width:  "100%",
+			Height: "900px",
 		}),
 		charts.WithToolboxOpts(opts.Toolbox{Show: true, Right: "top", Feature: &opts.ToolBoxFeature{SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{Show: true}}}),
 	)
@@ -50,7 +50,7 @@ func area(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts
 	for _, name := range oBenchNames {
 		var items []opts.LineData
 		for _, arg := range oBenchArgs {
-			items = append(items, opts.LineData{Value: benchResults[name][arg]})
+			items = append(items, opts.LineData{Value: benchResults[metric][name][arg]})
 		}
 		line.AddSeries(name, items).
 			SetSeriesOptions(
@@ -68,15 +68,15 @@ func area(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts
 	return line
 }
 
-func bar(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Bar {
+func barChart(benchResults map[string]BenchNameSet, metric string, oBenchNames, oBenchArgs stringList) *charts.Bar {
 	bar := charts.NewBar()
 	bar.SetGlobalOptions(
 		charts.WithInitializationOpts(opts.Initialization{Theme: types.ThemeShine}),
-		charts.WithTitleOpts(opts.Title{Title: title + "allocs/op"}),
+		charts.WithTitleOpts(opts.Title{Title: title + metric}),
 		charts.WithLegendOpts(opts.Legend{Show: true, Top: "bottom"}),
 		charts.WithInitializationOpts(opts.Initialization{
-			Width:  "1200px",
-			Height: "600px",
+			Width:  "100%",
+			Height: "900px",
 		}),
 		charts.WithToolboxOpts(opts.Toolbox{Show: true, Right: "top", Feature: &opts.ToolBoxFeature{SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{Show: true}}}),
 	)
@@ -86,27 +86,39 @@ func bar(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.
 	for _, name := range oBenchNames {
 		var items []opts.BarData
 		for _, arg := range oBenchArgs {
-			items = append(items, opts.BarData{Value: benchResults[name][arg]})
+			items = append(items, opts.BarData{Value: benchResults[metric][name][arg]})
 		}
 		bar.AddSeries(name, items)
 	}
-	bar.SetSeriesOptions(charts.WithMarkLineNameTypeItemOpts(
-		opts.MarkLineNameTypeItem{Name: "Maximum", Type: "max"},
-		opts.MarkLineNameTypeItem{Name: "Avg", Type: "average"},
-	))
+
+	if showBarMaxLine {
+		bar.SetSeriesOptions(charts.WithMarkLineNameTypeItemOpts(
+			opts.MarkLineNameTypeItem{Name: "Maximum", Type: "max"},
+		))
+	}
+
+	if showBarAvgLine {
+		bar.SetSeriesOptions(charts.WithMarkLineNameTypeItemOpts(
+			opts.MarkLineNameTypeItem{Name: "Avg", Type: "average"},
+		))
+	}
+	//bar.SetSeriesOptions(charts.WithMarkLineNameTypeItemOpts(
+	//	opts.MarkLineNameTypeItem{Name: "Maximum", Type: "max"},
+	//	opts.MarkLineNameTypeItem{Name: "Avg", Type: "average"},
+	//))
 
 	return bar
 }
 
-func scatter(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Scatter {
+func scatterChart(benchResults map[string]BenchNameSet, metric string, oBenchNames, oBenchArgs stringList) *charts.Scatter {
 	scatter := charts.NewScatter()
 	scatter.SetGlobalOptions(
 		charts.WithInitializationOpts(opts.Initialization{Theme: types.ThemeShine}),
-		charts.WithTitleOpts(opts.Title{Title: title + "allocs/op"}),
+		charts.WithTitleOpts(opts.Title{Title: title + metric}),
 		charts.WithLegendOpts(opts.Legend{Show: true, Top: "bottom"}),
 		charts.WithInitializationOpts(opts.Initialization{
-			Width:  "1200px",
-			Height: "600px",
+			Width:  "100%",
+			Height: "900px",
 		}),
 		charts.WithToolboxOpts(opts.Toolbox{Show: true, Right: "top", Feature: &opts.ToolBoxFeature{SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{Show: true}}}),
 	)
@@ -117,7 +129,7 @@ func scatter(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *cha
 		var items []opts.ScatterData
 		for _, arg := range oBenchArgs {
 			items = append(items, opts.ScatterData{
-				Value:        benchResults[name][arg],
+				Value:        benchResults[metric][name][arg],
 				Symbol:       "roundRect",
 				SymbolSize:   20,
 				SymbolRotate: 10,
@@ -135,27 +147,27 @@ func scatter(benchResults BenchNameSet, oBenchNames, oBenchArgs stringList) *cha
 	return scatter
 }
 
-func overlap(benchResults map[int]BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Bar {
-	bar := bar(benchResults[bop], oBenchNames, oBenchArgs)
+func overlapChart(benchResults map[string]BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Bar {
+	bar := barChart(benchResults, bop, oBenchNames, oBenchArgs)
 	//bar.SetSeriesOptions(charts.WithMarkLineNameTypeItemOpts(
 	//	opts.MarkLineNameTypeItem{Name: "Maximum", Type: "max"},
 	//	opts.MarkLineNameTypeItem{Name: "Avg", Type: "average"},
 	//))
-	bar.Overlap(scatter(benchResults[allocsop], oBenchNames, oBenchArgs))
-	bar.Overlap(line(benchResults[nsop], oBenchNames, oBenchArgs))
+	bar.Overlap(scatterChart(benchResults, allocsop, oBenchNames, oBenchArgs))
+	bar.Overlap(lineChart(benchResults, nsop, oBenchNames, oBenchArgs))
 
 	return bar
 }
 
-func barStack(benchResults map[int]BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Bar {
+func barStackChart(benchResults map[string]BenchNameSet, oBenchNames, oBenchArgs stringList) *charts.Bar {
 	bar := charts.NewBar()
 	bar.SetGlobalOptions(
 		charts.WithInitializationOpts(opts.Initialization{Theme: types.ThemeShine}),
-		charts.WithTitleOpts(opts.Title{Title: title + "allocs/op"}),
+		charts.WithTitleOpts(opts.Title{Title: title + allocsop}),
 		charts.WithLegendOpts(opts.Legend{Show: true, Top: "bottom"}),
 		charts.WithInitializationOpts(opts.Initialization{
-			Width:  "1200px",
-			Height: "600px",
+			Width:  "100%",
+			Height: "900px",
 		}),
 		charts.WithToolboxOpts(opts.Toolbox{Show: true, Right: "top", Feature: &opts.ToolBoxFeature{SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{Show: true}}}),
 	)
