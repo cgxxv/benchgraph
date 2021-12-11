@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"unsafe"
 
 	"github.com/fatih/color"
 	"github.com/go-echarts/go-echarts/v2/components"
@@ -15,15 +17,17 @@ import (
 )
 
 var metrics = []string{
+	benchtimes,
 	nsop,
 	bop,
 	allocsop,
 }
 
 const (
-	nsop     = "n/op"
-	bop      = "B/op"
-	allocsop = "allocs/op"
+	benchtimes = "benchtimes"
+	nsop       = "n/op"
+	bop        = "B/op"
+	allocsop   = "allocs/op"
 
 	bar = iota
 	line
@@ -114,6 +118,7 @@ func main() {
 				}
 			}
 
+			benchResults[benchtimes][name][arg] = b.N
 			benchResults[nsop][name][arg] = b.NsPerOp
 			benchResults[bop][name][arg] = b.AllocedBytesPerOp
 			benchResults[allocsop][name][arg] = b.AllocsPerOp
@@ -162,8 +167,6 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%#v\n", extra)
-
 	for _, v := range extra {
 		switch shape {
 		case line:
@@ -181,20 +184,19 @@ func main() {
 		}
 	}
 
-	f, err := os.Create("asset/page.html")
+	f, err := os.OpenFile("page.html", os.O_RDWR|os.O_CREATE, 0755)
 	if err != nil {
 		panic(err)
 	}
 	page.Render(io.MultiWriter(f))
+	f.Close()
 
-	fs := http.FileServer(http.Dir("asset"))
 	log.Println("running server at http://localhost:8090")
-	log.Fatal(http.ListenAndServe("localhost:8090", logRequest(fs)))
+	http.HandleFunc("/", hello)
+	log.Fatal(http.ListenAndServe("localhost:8090", nil))
 }
 
-func logRequest(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
-		handler.ServeHTTP(w, r)
-	})
+func hello(w http.ResponseWriter, req *http.Request) {
+	b, _ := ioutil.ReadFile("page.html")
+	fmt.Fprint(w, *(*string)(unsafe.Pointer(&b)))
 }
