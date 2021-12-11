@@ -25,7 +25,7 @@ var metrics = []string{
 
 const (
 	benchtimes = "benchtimes"
-	nsop       = "n/op"
+	nsop       = "ns/op"
 	bop        = "B/op"
 	allocsop   = "allocs/op"
 
